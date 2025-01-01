@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"sync"
@@ -63,17 +62,6 @@ func (server *ChatServer) handleConnection(w http.ResponseWriter, r *http.Reques
 	log.Println("Client disconnected")
 }
 
-func getPublicIP() string {
-	conn, err := net.Dial("udp", "8.8.8.8:80") // Use a dummy connection to get the public IP
-	if err != nil {
-		return "Unknown"
-	}
-	defer conn.Close()
-
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-	return localAddr.IP.String()
-}
-
 func (server *ChatServer) Start() {
 	http.HandleFunc("/", server.handleConnection)
 
@@ -88,6 +76,10 @@ func (server *ChatServer) Start() {
 	if err := http.ListenAndServe("0.0.0.0:"+port, nil); err != nil {
 		fmt.Println("Error starting server:", err)
 	}
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "WebSocket server is running!")
+	})
 }
 
 func main() {
