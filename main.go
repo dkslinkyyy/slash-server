@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -76,11 +77,15 @@ func getPublicIP() string {
 func (server *ChatServer) Start() {
 	http.HandleFunc("/", server.handleConnection)
 
-	// Log public IP
-	publicIP := getPublicIP()
-	fmt.Printf("Server started at ws://%s:8080\n", publicIP)
+	// Get the PORT environment variable
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080" // Fallback for local testing
+	}
 
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	// Bind to 0.0.0.0 and listen on the Railway-provided port
+	fmt.Printf("Server started at port %s...\n", port)
+	if err := http.ListenAndServe("0.0.0.0:"+port, nil); err != nil {
 		fmt.Println("Error starting server:", err)
 	}
 }
