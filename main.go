@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"sync"
 
@@ -61,9 +62,24 @@ func (server *ChatServer) handleConnection(w http.ResponseWriter, r *http.Reques
 	log.Println("Client disconnected")
 }
 
+func getPublicIP() string {
+	conn, err := net.Dial("udp", "8.8.8.8:80") // Use a dummy connection to get the public IP
+	if err != nil {
+		return "Unknown"
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP.String()
+}
+
 func (server *ChatServer) Start() {
 	http.HandleFunc("/", server.handleConnection)
-	fmt.Println("Server started...")
+
+	// Log public IP
+	publicIP := getPublicIP()
+	fmt.Printf("Server started at ws://%s:8080\n", publicIP)
+
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		fmt.Println("Error starting server:", err)
 	}
