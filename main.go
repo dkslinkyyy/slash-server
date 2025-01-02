@@ -43,7 +43,7 @@ func (server *ChatServer) registerServer() error {
 	}
 
 	// Send POST request to the registration endpoint
-	resp, err := http.Post("http://slash-proxy-production.up.railway.app/register", "application/json", bytes.NewBuffer(data))
+	resp, err := http.Post("http://slash-proxy-production.up.railway.app/webservers/register", "application/json", bytes.NewBuffer(data))
 	if err != nil {
 		return fmt.Errorf("error sending POST request: %v", err)
 	}
