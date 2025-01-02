@@ -32,8 +32,8 @@ func NewChatServer() *ChatServer {
 func (server *ChatServer) registerServer() error {
 	// Prepare JSON body for registration
 	serverInfo := ServerInfo{
-		Name:       os.Getenv("NAME"),       // Assuming NAME is an environment variable
-		Identifier: os.Getenv("IDENTIFIER"), // Assuming IDENTIFIER is an environment variable
+		Name:       os.Getenv("RAILWAY_SERVICE_NAME"), // Assuming NAME is an environment variable
+		Identifier: os.Getenv("RAILWAY_SERVICE_ID"),   // Assuming IDENTIFIER is an environment variable
 	}
 
 	// Convert the struct to JSON
@@ -43,7 +43,7 @@ func (server *ChatServer) registerServer() error {
 	}
 
 	// Send POST request to the registration endpoint
-	resp, err := http.Post("http://your-registration-url.com/register", "application/json", bytes.NewBuffer(data))
+	resp, err := http.Post("http://slash-proxy-production.up.railway.app/register", "application/json", bytes.NewBuffer(data))
 	if err != nil {
 		return fmt.Errorf("error sending POST request: %v", err)
 	}
