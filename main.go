@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -16,12 +17,44 @@ type ChatServer struct {
 	mu          sync.Mutex                 // Mutex to protect concurrent access to activeUsers
 }
 
+type ServerInfo struct {
+	Name       string `json:"name"`
+	Identifier string `json:"identifier"`
+}
+
 func NewChatServer() *ChatServer {
 	return &ChatServer{
 		activeUsers: make(map[*websocket.Conn]string),
 	}
 }
 
+// Function to register the server with environment variables
+func (server *ChatServer) registerServer() error {
+	// Prepare JSON body for registration
+	serverInfo := ServerInfo{
+		Name:       os.Getenv("NAME"),       // Assuming NAME is an environment variable
+		Identifier: os.Getenv("IDENTIFIER"), // Assuming IDENTIFIER is an environment variable
+	}
+
+	// Convert the struct to JSON
+	data, err := json.Marshal(serverInfo)
+	if err != nil {
+		return fmt.Errorf("error marshalling server info: %v", err)
+	}
+
+	// Send POST request to the registration endpoint
+	resp, err := http.Post("http://your-registration-url.com/register", "application/json", bytes.NewBuffer(data))
+	if err != nil {
+		return fmt.Errorf("error sending POST request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Log the response
+	log.Printf("Server registered with response status: %s", resp.Status)
+	return nil
+}
+
+// Function to handle client WebSocket connections
 func (server *ChatServer) handleConnection(w http.ResponseWriter, r *http.Request) {
 	// Upgrade HTTP connection to WebSocket
 	conn, err := websocket.Upgrade(w, r, nil, 1024, 1024)
@@ -62,7 +95,23 @@ func (server *ChatServer) handleConnection(w http.ResponseWriter, r *http.Reques
 	log.Println("Client disconnected")
 }
 
+// Handle connection request (GET request)
+func (server *ChatServer) handleConnectionRequest(w http.ResponseWriter, r *http.Request) {
+	// Just a simple example of connection request logic
+	// In a real-world scenario, you'd check if the server is available and respond accordingly
+	log.Println("Received connection request")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintln(w, "Connection successful")
+}
+
 func (server *ChatServer) Start() {
+	// Register the server upon startup
+	if err := server.registerServer(); err != nil {
+		log.Fatalf("Error registering server: %v", err)
+	}
+
+	// Set up the HTTP routes
+	http.HandleFunc("/webserver/requestConnection", server.handleConnectionRequest)
 	http.HandleFunc("/", server.handleConnection)
 
 	// Get the PORT environment variable
@@ -76,10 +125,6 @@ func (server *ChatServer) Start() {
 	if err := http.ListenAndServe("0.0.0.0:"+port, nil); err != nil {
 		fmt.Println("Error starting server:", err)
 	}
-
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "WebSocket server is running!")
-	})
 }
 
 func main() {
