@@ -18,8 +18,8 @@ type ChatServer struct {
 }
 
 type ServerInfo struct {
-	Name       string `json:"name"`
-	Identifier string `json:"identifier"`
+	Name       string `json:"serviceName"`
+	Identifier string `json:"seviceIdentifier"`
 }
 
 func NewChatServer() *ChatServer {
