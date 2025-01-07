@@ -42,6 +42,8 @@ func (server *ChatServer) registerServer() error {
 		return fmt.Errorf("error marshalling server info: %v", err)
 	}
 
+	log.Printf(string(data))
+
 	// Send POST request to the registration endpoint
 	resp, err := http.Post("http://slash-proxy-production.up.railway.app/webservers/register", "application/json", bytes.NewBuffer(data))
 	if err != nil {
