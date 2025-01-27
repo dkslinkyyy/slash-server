@@ -4,6 +4,6 @@ service:
   id: "RAILWAY_SERVICE_ID"       # Placeholder for environment variable
 server:
   port: "8080"
-  URL: "RAILWAY_PUBLIC_DOMAIN"
+  URL: "slash-proxy-production.up.railway.app"
 proxy:
   registration_url: "https://slash-proxy-production.up.railway.app/webservers/register"
