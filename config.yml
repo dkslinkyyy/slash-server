@@ -1,0 +1,9 @@
+local: true
+service:
+  name: "RAILWAY_SERVICE_NAME"   # Placeholder for environment variable
+  id: "RAILWAY_SERVICE_ID"       # Placeholder for environment variable
+server:
+  port: "8080"
+  URL: "RAILWAY_PUBLIC_DOMAIN"
+proxy:
+  registration_url: "https://slash-proxy-production.up.railway.app/webservers/register"
