@@ -1,4 +1,4 @@
-local: true
+local: false
 service:
   name: "RAILWAY_SERVICE_NAME"   # Placeholder for environment variable
   id: "RAILWAY_SERVICE_ID"       # Placeholder for environment variable
