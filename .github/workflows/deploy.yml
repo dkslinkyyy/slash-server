@@ -15,7 +15,7 @@ jobs:
 
       - name: Set up SSH key
         run: |
-          echo "$SSH_PRIVATE_KEY" > private_key.pem
+          echo "${{ secrets.EC2_KEY }}" > private_key.pem
           chmod 600 private_key.pem
 
       - name: Build Docker image
@@ -24,7 +24,7 @@ jobs:
 
       - name: Push Docker image to EC2
         run: |
-          ssh -i private_key.pem ubuntu@your-ec2-ip "
+          ssh -i private_key.pem ubuntu@ec2-16-171-141-188.eu-north-1.compute.amazonaws.com "
             docker pull websocket-server &&
             docker stop websocket-server || true &&
             docker rm websocket-server || true &&
