@@ -1,0 +1,32 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v2
+
+      - name: Set up SSH key
+        run: |
+          echo "$SSH_PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
+
+      - name: Build Docker image
+        run: |
+          docker build -t websocket-server .
+
+      - name: Push Docker image to EC2
+        run: |
+          ssh -i private_key.pem ubuntu@your-ec2-ip "
+            docker pull websocket-server &&
+            docker stop websocket-server || true &&
+            docker rm websocket-server || true &&
+            docker run -d -p 8080:8080 --name websocket-server websocket-server
+          "
