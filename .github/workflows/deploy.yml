@@ -25,8 +25,8 @@ jobs:
       - name: Push Docker image to EC2
         run: |
           ssh -o StrictHostKeyChecking=no -i private_key.pem ubuntu@ec2-16-171-141-188.eu-north-1.compute.amazonaws.com << 'EOF'
-            docker pull websocket-server &&
-            docker stop websocket-server || true &&
-            docker rm websocket-server || true &&
-            docker run -d -p 8080:8080 --name websocket-server websocket-server
+            sudo docker pull websocket-server &&
+            sudo docker stop websocket-server || true &&
+            sudo docker rm websocket-server || true &&
+            sudo docker run -d -p 8080:8080 --name websocket-server websocket-server
           EOF
