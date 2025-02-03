@@ -59,6 +59,9 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Assuming the first message is the username
+	fmt.Println(msgBytes)
+	fmt.Println(&username)
+
 	err = json.Unmarshal(msgBytes, &username)
 	if err != nil {
 		fmt.Println("Error decoding username:", err)
