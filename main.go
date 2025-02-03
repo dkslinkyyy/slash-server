@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
@@ -17,9 +18,16 @@ var upgrader = websocket.Upgrader{
 
 var (
 	clients   = make(map[*websocket.Conn]bool) // Active WebSocket clients
-	broadcast = make(chan []byte)              // Channel for broadcasting messages
+	broadcast = make(chan Message)             // Channel for broadcasting messages
 	mu        sync.Mutex                        // Mutex to protect concurrent access
 )
+
+// Message structure
+type Message struct {
+	Type string `json:"type"` // "message" or "typing"
+	User string `json:"user"`
+	Text string `json:"text,omitempty"` // Only for normal messages
+}
 
 // HandleWebSocket handles WebSocket requests from clients.
 func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
@@ -39,16 +47,22 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	// Listen for messages from the client
 	for {
-		_, message, err := conn.ReadMessage()
+		_, msgBytes, err := conn.ReadMessage()
 		if err != nil {
 			fmt.Println("Error reading message:", err)
 			break
 		}
 
-		fmt.Printf("Received: %s\n", message)
+		// Decode the incoming message
+		var msg Message
+		err = json.Unmarshal(msgBytes, &msg)
+		if err != nil {
+			fmt.Println("Error decoding message:", err)
+			continue
+		}
 
-		// Broadcast the message to all connected clients
-		broadcast <- message
+		// Broadcast the message to all clients
+		broadcast <- msg
 	}
 
 	// Remove the client when they disconnect
@@ -62,11 +76,17 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 // Broadcast messages to all connected clients
 func handleMessages() {
 	for {
-		message := <-broadcast
+		msg := <-broadcast
 
 		mu.Lock()
 		for client := range clients {
-			err := client.WriteMessage(websocket.TextMessage, message)
+			msgBytes, err := json.Marshal(msg)
+			if err != nil {
+				fmt.Println("Error encoding message:", err)
+				continue
+			}
+
+			err = client.WriteMessage(websocket.TextMessage, msgBytes)
 			if err != nil {
 				fmt.Println("Error writing message:", err)
 				client.Close()
