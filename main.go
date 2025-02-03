@@ -9,27 +9,27 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// WebSocket upgrader
+
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins (for testing only)
+		return true 
 	},
 }
 
 var (
-	clients   = make(map[*websocket.Conn]bool) // Track connected clients
-	broadcast = make(chan Message)             // Channel for broadcasting messages
-	mu        sync.Mutex                       // Mutex to prevent race conditions
+	clients   = make(map[*websocket.Conn]bool) 
+	broadcast = make(chan Message)             
+	mu        sync.Mutex                       
 )
 
-// Message struct for WebSocket communication
+
 type Message struct {
-	Type string `json:"type"`           // "message" or "typing"
-	User string `json:"user"`           // Username
-	Text string `json:"text,omitempty"` // Chat message content (optional)
+	Type string `json:"type"`           
+	User string `json:"user"`           
+	Text string `json:"text,omitempty"` 
 }
 
-// WebSocket handler
+
 func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -44,13 +44,13 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Client disconnected")
 	}()
 
-	// Register the client
+	
 	mu.Lock()
 	clients[conn] = true
 	mu.Unlock()
 	fmt.Println("Client connected")
 
-	// Handle username setup (assume it's sent immediately after connection)
+	
 	var msgBytes []byte
 	_, msgBytes, err = conn.ReadMessage()
 	if err != nil {
@@ -58,15 +58,15 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Listen for messages
+	
 	for {
 		_, msgBytes, err := conn.ReadMessage()
 		if err != nil {
 			fmt.Println("Error reading message:", err)
-			break // Exit loop on error (client likely disconnected)
+			break 
 		}
 
-		// Decode message
+		
 		var msg Message
 		err = json.Unmarshal(msgBytes, &msg)
 		if err != nil {
@@ -74,22 +74,22 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Debug: Log received message
+		
 		fmt.Printf("Received message: %+v\n", msg)
 
-		// Send message to broadcast channel
+		
 		broadcast <- msg
 	}
 }
 
-// Broadcast messages to all clients except the sender
+
 func handleMessages() {
 	for {
 		msg := <-broadcast
 
 		mu.Lock()
 		for client := range clients {
-			// Exclude the sender (the client who sent the message)
+			
 			err := client.WriteMessage(websocket.TextMessage, msgBytes)
 			if err != nil {
 				fmt.Println("Error sending message:", err)
@@ -105,9 +105,9 @@ func main() {
 	http.HandleFunc("/ws", HandleWebSocket)
 
 	port := "8080"
-	fmt.Printf("WebSocket server started at ws://localhost:%s/ws\n", port)
+	fmt.Printf("WebSocket server started at ws:
 
-	// Start the message broadcasting routine
+	
 	go handleMessages()
 
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
