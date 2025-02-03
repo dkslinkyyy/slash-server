@@ -17,11 +17,10 @@ var upgrader = websocket.Upgrader{
 }
 
 var (
-	clients   = make(map[*websocket.Conn]string) // Track connected clients and their usernames
-	broadcast = make(chan Message)                // Channel for broadcasting messages
-	mu        sync.Mutex                          // Mutex to prevent race conditions
+	clients   = make(map[*websocket.Conn]bool) // Track connected clients
+	broadcast = make(chan Message)             // Channel for broadcasting messages
+	mu        sync.Mutex                       // Mutex to prevent race conditions
 )
-
 
 // Message struct for WebSocket communication
 type Message struct {
@@ -45,33 +44,19 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Client disconnected")
 	}()
 
-	// Register the client and assign a username
+	// Register the client
 	mu.Lock()
-	clients[conn] = "" // Empty until username is set
+	clients[conn] = true
 	mu.Unlock()
 	fmt.Println("Client connected")
 
 	// Handle username setup (assume it's sent immediately after connection)
-	var username string
-	_, msgBytes, err := conn.ReadMessage()
+	var msgBytes []byte
+	_, msgBytes, err = conn.ReadMessage()
 	if err != nil {
 		fmt.Println("Error reading message:", err)
 		return
 	}
-	// Assuming the first message is the username
-	fmt.Println(msgBytes)
-	fmt.Println(&username)
-
-	err = json.Unmarshal(msgBytes, &username)
-	if err != nil {
-		fmt.Println("Error decoding username:", err)
-		return
-	}
-
-	// Save the username
-	mu.Lock()
-	clients[conn] = username
-	mu.Unlock()
 
 	// Listen for messages
 	for {
@@ -97,37 +82,24 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-
 // Broadcast messages to all clients except the sender
 func handleMessages() {
 	for {
 		msg := <-broadcast
 
 		mu.Lock()
-		for client, username := range clients {
-			// Exclude the sender
-			if username != msg.User { // Only broadcast to clients other than the sender
-				msgBytes, err := json.Marshal(msg)
-				if err != nil {
-					fmt.Println("Error encoding message:", err)
-					continue
-				}
-
-				// Debug: Log message before sending
-				fmt.Printf("Broadcasting: %+v\n", msg)
-
-				err = client.WriteMessage(websocket.TextMessage, msgBytes)
-				if err != nil {
-					fmt.Println("Error sending message:", err)
-					client.Close()
-					delete(clients, client)
-				}
+		for client := range clients {
+			// Exclude the sender (the client who sent the message)
+			err := client.WriteMessage(websocket.TextMessage, msgBytes)
+			if err != nil {
+				fmt.Println("Error sending message:", err)
+				client.Close()
+				delete(clients, client)
 			}
 		}
 		mu.Unlock()
 	}
 }
-
 
 func main() {
 	http.HandleFunc("/ws", HandleWebSocket)
