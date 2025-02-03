@@ -105,7 +105,7 @@ func main() {
 	http.HandleFunc("/ws", HandleWebSocket)
 
 	port := "8080"
-	fmt.Printf("WebSocket server started at ws:
+	fmt.Printf("WebSocket server started at ws:")
 
 	
 	go handleMessages()
