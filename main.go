@@ -2,57 +2,44 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/websocket"
 )
 
-// Upgrader configures the WebSocket connection.
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins (adjust for production use)
-	},
+type webSocketHandler struct {
+	upgrader websocket.Upgrader
 }
 
-// HandleWebSocket handles WebSocket requests from clients.
-func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
-	// Upgrade the HTTP connection to a WebSocket connection.
-	conn, err := upgrader.Upgrade(w, r, nil)
+func (wsh webSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	c, err := wsh.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		fmt.Println("Error upgrading connection:", err)
+		log.Printf("error %s when upgrading connection to websocket", err)
 		return
 	}
-	defer conn.Close()
+	defer c.Close()
+}
 
-	fmt.Println("Client connected")
-
-	// Listen for messages from the client.
-	for {
-		messageType, message, err := conn.ReadMessage()
-		if err != nil {
-			fmt.Println("Error reading message:", err)
-			break
-		}
-
-		fmt.Printf("Received: %s\n", message)
-
-		// Echo the message back to the client.
-		if err := conn.WriteMessage(messageType, message); err != nil {
-			fmt.Println("Error writing message:", err)
-			break
-		}
+func printLogo() {
+	data, err := os.ReadFile("assets/logo.txt")
+	if err != nil {
+		fmt.Println("Error reading file:", err)
+		return
 	}
 
-	fmt.Println("Client disconnected")
+	fmt.Println(string(data))
 }
 
 func main() {
-	http.HandleFunc("/ws", HandleWebSocket)
 
-	port := "8080"
-	fmt.Printf("WebSocket server started at ws://localhost:%s/ws\n", port)
+	printLogo()
 
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		fmt.Println("Error starting server:", err)
+	webSocketHandler := webSocketHandler{
+		upgrader: websocket.Upgrader{},
 	}
+	http.Handle("/", webSocketHandler)
+	log.Println("Starting websocket on localhost:8080..")
+	log.Fatal(http.ListenAndServe("localhost:8080", nil))
 }
