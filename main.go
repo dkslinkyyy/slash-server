@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/gorilla/websocket"
 )
@@ -14,9 +15,14 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+var (
+	clients   = make(map[*websocket.Conn]bool) // Active WebSocket clients
+	broadcast = make(chan []byte)              // Channel for broadcasting messages
+	mu        sync.Mutex                        // Mutex to protect concurrent access
+)
+
 // HandleWebSocket handles WebSocket requests from clients.
 func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
-	// Upgrade the HTTP connection to a WebSocket connection.
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		fmt.Println("Error upgrading connection:", err)
@@ -24,11 +30,16 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
+	// Register the client
+	mu.Lock()
+	clients[conn] = true
+	mu.Unlock()
+
 	fmt.Println("Client connected")
 
-	// Listen for messages from the client.
+	// Listen for messages from the client
 	for {
-		messageType, message, err := conn.ReadMessage()
+		_, message, err := conn.ReadMessage()
 		if err != nil {
 			fmt.Println("Error reading message:", err)
 			break
@@ -36,14 +47,34 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		fmt.Printf("Received: %s\n", message)
 
-		// Echo the message back to the client.
-		if err := conn.WriteMessage(messageType, message); err != nil {
-			fmt.Println("Error writing message:", err)
-			break
-		}
+		// Broadcast the message to all connected clients
+		broadcast <- message
 	}
 
+	// Remove the client when they disconnect
+	mu.Lock()
+	delete(clients, conn)
+	mu.Unlock()
+
 	fmt.Println("Client disconnected")
+}
+
+// Broadcast messages to all connected clients
+func handleMessages() {
+	for {
+		message := <-broadcast
+
+		mu.Lock()
+		for client := range clients {
+			err := client.WriteMessage(websocket.TextMessage, message)
+			if err != nil {
+				fmt.Println("Error writing message:", err)
+				client.Close()
+				delete(clients, client)
+			}
+		}
+		mu.Unlock()
+	}
 }
 
 func main() {
@@ -51,6 +82,9 @@ func main() {
 
 	port := "8080"
 	fmt.Printf("WebSocket server started at ws://localhost:%s/ws\n", port)
+
+	// Start the message broadcasting routine
+	go handleMessages()
 
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		fmt.Println("Error starting server:", err)
