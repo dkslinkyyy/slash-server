@@ -9,51 +9,56 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Upgrader configures the WebSocket connection.
+// WebSocket upgrader
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins (adjust for production use)
+		return true // Allow all origins (for testing only)
 	},
 }
 
 var (
-	clients   = make(map[*websocket.Conn]bool) // Active WebSocket clients
+	clients   = make(map[*websocket.Conn]bool) // Track connected clients
 	broadcast = make(chan Message)             // Channel for broadcasting messages
-	mu        sync.Mutex                        // Mutex to protect concurrent access
+	mu        sync.Mutex                        // Mutex to prevent race conditions
 )
 
-// Message structure
+// Message struct for WebSocket communication
 type Message struct {
-	Type string `json:"type"` // "message" or "typing"
-	User string `json:"user"`
-	Text string `json:"text,omitempty"` // Only for normal messages
+	Type string `json:"type"`           // "message" or "typing"
+	User string `json:"user"`           // Username
+	Text string `json:"text,omitempty"` // Chat message content (optional)
 }
 
-// HandleWebSocket handles WebSocket requests from clients.
+// WebSocket handler
 func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		fmt.Println("Error upgrading connection:", err)
 		return
 	}
-	defer conn.Close()
+	defer func() {
+		mu.Lock()
+		delete(clients, conn)
+		mu.Unlock()
+		conn.Close()
+		fmt.Println("Client disconnected")
+	}()
 
 	// Register the client
 	mu.Lock()
 	clients[conn] = true
 	mu.Unlock()
-
 	fmt.Println("Client connected")
 
-	// Listen for messages from the client
+	// Listen for messages
 	for {
 		_, msgBytes, err := conn.ReadMessage()
 		if err != nil {
 			fmt.Println("Error reading message:", err)
-			break
+			break // Exit loop on error (client likely disconnected)
 		}
 
-		// Decode the incoming message
+		// Decode message
 		var msg Message
 		err = json.Unmarshal(msgBytes, &msg)
 		if err != nil {
@@ -61,19 +66,15 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Broadcast the message to all clients
+		// Debug: Log received message
+		fmt.Printf("Received message: %+v\n", msg)
+
+		// Send message to broadcast channel
 		broadcast <- msg
 	}
-
-	// Remove the client when they disconnect
-	mu.Lock()
-	delete(clients, conn)
-	mu.Unlock()
-
-	fmt.Println("Client disconnected")
 }
 
-// Broadcast messages to all connected clients
+// Broadcast messages to all clients
 func handleMessages() {
 	for {
 		msg := <-broadcast
@@ -86,9 +87,12 @@ func handleMessages() {
 				continue
 			}
 
+			// Debug: Log message before sending
+			fmt.Printf("Broadcasting: %+v\n", msg)
+
 			err = client.WriteMessage(websocket.TextMessage, msgBytes)
 			if err != nil {
-				fmt.Println("Error writing message:", err)
+				fmt.Println("Error sending message:", err)
 				client.Close()
 				delete(clients, client)
 			}
