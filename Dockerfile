@@ -1,23 +1,22 @@
-# Use a Go base image
-FROM golang:1.20-alpine
+# Start from Golang base image
+FROM golang:1.23.4
 
-# Set the current working directory in the container
 WORKDIR /app
 
-# Copy go.mod and go.sum files
+# Copy go modules files and download dependencies
 COPY go.mod go.sum ./
+RUN go mod download
 
-# Download dependencies
-RUN go mod tidy
-
-# Copy the source code into the container
+# Copy the rest of the application
 COPY . .
 
-# Build the Go application
-RUN go build -o websocket-server .
+# Set environment variables (optional)
+ENV SERVER_HOST=0.0.0.0
+ENV SERVER_PORT=8080
+ENV SERVER_WEBSOCKET_PATH=/ws
 
-# Expose the WebSocket server port
-EXPOSE 8080
+# Build the application
+RUN go build -o websocket-server ./cmd/server/main.go
 
-# Command to run the Go application
+# Run the application
 CMD ["./websocket-server"]
